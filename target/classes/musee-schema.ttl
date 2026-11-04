@@ -1,0 +1,118 @@
+# ============================================================
+#  musee-schema.ttl  --  Schéma RDFS du projet "Musée" (Rijksmuseum)
+#  Matière : Web Sémantique  |  Format : Turtle
+#  Rôle : donner du SENS aux triplets de musee.rdf
+#         (RDF = la phrase ; RDFS = la grammaire et le dictionnaire)
+# ============================================================
+
+# ---------- 1. PRÉFIXES (raccourcis d'URI, cf. chapitre 2) ----------
+@prefix rdf:       <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:      <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:       <http://www.w3.org/2001/XMLSchema#> .
+@prefix dc:        <http://purl.org/dc/elements/1.1/> .
+@prefix dct:       <http://purl.org/dc/terms/> .
+@prefix skos:      <http://www.w3.org/2004/02/skos/core#> .
+@prefix edm:       <http://www.europeana.eu/schemas/edm/> .
+@prefix ore:       <http://www.openarchives.org/ore/terms/> .
+@prefix wgs84_pos: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+@prefix foaf:      <http://xmlns.com/foaf/0.1/> .
+# Notre propre espace de noms (comme http://exercice2/vocabulaire# dans le TD1)
+@prefix mus:       <http://musee.example.org/vocabulaire#> .
+
+
+# ---------- 2. LES CLASSES (rdfs:Class) ----------
+# "a" est le raccourci Turtle de rdf:type : "X a rdfs:Class" = X est une classe.
+
+edm:ProvidedCHO   a rdfs:Class ; rdfs:label "Oeuvre (objet du patrimoine)"@fr .
+edm:Agent         a rdfs:Class ; rdfs:label "Agent (artiste, personne)"@fr .
+edm:Place         a rdfs:Class ; rdfs:label "Lieu"@fr .
+edm:TimeSpan      a rdfs:Class ; rdfs:label "Periode"@fr .
+skos:Concept      a rdfs:Class ; rdfs:label "Concept (type, matiere, technique)"@fr .
+edm:WebResource   a rdfs:Class ; rdfs:label "Ressource web (image)"@fr .
+ore:Aggregation   a rdfs:Class ; rdfs:label "Fiche regroupant l'oeuvre et son image"@fr .
+
+# Classe CRÉÉE par nous (seule classe de notre espace mus:)
+mus:EntiteContextuelle a rdfs:Class ;
+    rdfs:label "Entite contextuelle"@fr ;
+    rdfs:comment "Superclasse des entites qui decrivent le contexte d'une oeuvre."@fr .
+
+# Classe RÉUTILISÉE depuis FOAF (exigence : réutiliser un vocabulaire existant)
+foaf:Agent        a rdfs:Class ; rdfs:label "Agent (FOAF)"@fr .
+
+
+# ---------- 3. HIÉRARCHIE DE CLASSES (rdfs:subClassOf) ----------
+# Règle R1 : (Agent subClassOf foaf:Agent) + (x type Agent) => (x type foaf:Agent)
+edm:Agent    rdfs:subClassOf mus:EntiteContextuelle , foaf:Agent .   # 2 parents autorisés
+edm:Place    rdfs:subClassOf mus:EntiteContextuelle .
+edm:TimeSpan rdfs:subClassOf mus:EntiteContextuelle .
+skos:Concept rdfs:subClassOf mus:EntiteContextuelle .
+
+
+# ---------- 4. LES PROPRIÉTÉS (rdf:Property + domain + range) ----------
+# rdfs:domain = classe du SUJET   (R5 : p(x,y) => x de type domain)
+# rdfs:range  = classe de l'OBJET (R6 : p(x,y) => y de type range)
+
+# --- Relations entre ressources ---
+dc:creator a rdf:Property ;
+    rdfs:domain edm:ProvidedCHO ;
+    rdfs:range  edm:Agent .
+
+dc:contributor a rdf:Property ;
+    rdfs:domain edm:ProvidedCHO ;
+    rdfs:range  edm:Agent .
+
+dc:type a rdf:Property ;
+    rdfs:domain edm:ProvidedCHO ;
+    rdfs:range  skos:Concept .
+
+# Le sujet d'une oeuvre peut etre un Concept, un Lieu, une Periode OU un Agent
+# (verifie dans le fichier) : on utilise donc la superclasse commune.
+dc:subject a rdf:Property ;
+    rdfs:domain edm:ProvidedCHO ;
+    rdfs:range  mus:EntiteContextuelle .
+
+dct:spatial a rdf:Property ;
+    rdfs:domain edm:ProvidedCHO ;
+    rdfs:range  edm:Place .
+
+dct:hasPart a rdf:Property ;
+    rdfs:domain edm:ProvidedCHO ;
+    rdfs:range  edm:ProvidedCHO .
+
+edm:aggregatedCHO a rdf:Property ;
+    rdfs:domain ore:Aggregation ;
+    rdfs:range  edm:ProvidedCHO .
+
+edm:isShownBy a rdf:Property ;
+    rdfs:domain ore:Aggregation ;
+    rdfs:range  edm:WebResource .
+
+# --- Propriétés à valeur littérale (texte / nombre) ---
+dc:title a rdf:Property ;
+    rdfs:domain edm:ProvidedCHO ;
+    rdfs:range  rdfs:Literal .          # texte avec langue (@nl, @en)
+
+# ATTENTION : pas de rdfs:domain ici VOLONTAIREMENT.
+# Dans le fichier, dct:created est utilise par les oeuvres ET par les images
+# (edm:WebResource). Un domain = ProvidedCHO ferait deduire (R5) que chaque
+# image est une oeuvre : inference FAUSSE.
+dct:created a rdf:Property ;
+    rdfs:range  rdfs:Literal .
+
+skos:prefLabel a rdf:Property ;
+    rdfs:domain mus:EntiteContextuelle ;   # Agent, Lieu, Periode, Concept l'utilisent tous
+    rdfs:range  rdfs:Literal .
+
+wgs84_pos:lat a rdf:Property ;
+    rdfs:domain edm:Place ;
+    rdfs:range  xsd:decimal .
+
+wgs84_pos:long a rdf:Property ;
+    rdfs:domain edm:Place ;
+    rdfs:range  xsd:decimal .
+
+
+# ---------- 5. HIÉRARCHIE DE PROPRIÉTÉS (rdfs:subPropertyOf) ----------
+# Règle R2 : creator subPropertyOf contributor + creator(x,y) => contributor(x,y)
+# (notre choix de modélisation : un créateur est aussi un contributeur)
+dc:creator rdfs:subPropertyOf dc:contributor .
